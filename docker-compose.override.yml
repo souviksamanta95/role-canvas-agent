@@ -1,0 +1,12 @@
+# LOCAL DEBUGGING ONLY. Docker Compose loads this file automatically.
+# It publishes Postgres and Redis on the loopback interface (127.0.0.1) so tools
+# on your machine can connect. Nothing is reachable from other hosts.
+# Never copy this file to a server. Run `docker compose -f docker-compose.yml up`
+# to start without it.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5433:5432"
+  redis:
+    ports:
+      - "127.0.0.1:6380:6379"
