@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pipx install poetry==2.5.2
+      - run: poetry config virtualenvs.in-project true
+      - run: poetry install
+      - run: poetry run ruff check .
+      - run: poetry run ruff format --check .
+      - run: poetry run mypy .
+      - run: poetry run pytest
+
+  agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pipx install poetry==2.5.2
+      - run: poetry config virtualenvs.in-project true
+      - run: poetry install
+      - run: poetry run ruff check .
+      - run: poetry run ruff format --check .
+      - run: poetry run mypy .
+      - run: poetry run pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  # Builds and starts the full stack using the repository secrets, then checks /health.
+  # Skipped for pull requests from forks, because GitHub does not expose secrets to them.
+  compose-smoke:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create .env from the example, injecting repository secrets
+        run: |
+          cp .env.example .env
+          python3 - <<'PY'
+          import os, re
+          text = open(".env").read()
+          for key in ("OPENROUTER_API_KEY", "DJANGO_SECRET_KEY"):
+              value = os.environ.get(key, "")
+              if not value:
+                  raise SystemExit(f"GitHub secret {key} is not set")
+              text = re.sub(rf"(?m)^{key}=.*$", lambda m, k=key, v=value: f"{k}={v}", text)
+          open(".env", "w").write(text)
+          PY
+      - run: docker compose -f docker-compose.yml up --build --wait --wait-timeout 180
+      - run: curl --fail http://localhost:8000/health/
+      - run: curl --fail http://localhost:8001/health
+      - if: failure()
+        run: docker compose -f docker-compose.yml logs --no-color
+      - if: always()
+        run: docker compose -f docker-compose.yml down
