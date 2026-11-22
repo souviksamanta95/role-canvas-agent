@@ -141,6 +141,13 @@ pip install pre-commit    # or: brew install pre-commit
 pre-commit install
 ```
 
+## Troubleshooting
+
+**Backend or agent unhealthy with `password authentication failed`.** Postgres reads `POSTGRES_PASSWORD` and `POSTGRES_READONLY_PASSWORD` only the first time it initialises an empty volume. If you change either value in `.env` afterwards, the database keeps the old one. Fix it with either:
+
+- `make db-reset` to delete the local database volume and recreate the roles from `.env` (local data is lost; it asks first), or
+- keep the data and change the passwords in place: `make db-shell`, then `ALTER ROLE <user> PASSWORD '<new value>';` for the owner and read-only roles.
+
 ## Repository layout
 
 ```
