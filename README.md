@@ -98,7 +98,28 @@ Postgres and Redis publish no ports in `docker-compose.yml`. The committed `dock
 
 ## Local development
 
-Versions are pinned: Python 3.12, Node from `.nvmrc`. See `docs/versions.md`.
+Versions are pinned: Python 3.12, Poetry 2.x, Node from `.nvmrc`. See `docs/versions.md`. A Makefile wraps the common tasks and detects your OS (macOS, Linux, or Windows from Git Bash or WSL). Run `make help` for the full list.
+
+```bash
+make setup        # check prerequisites, create .env (with a generated Django secret), install everything
+make dev          # all services in Docker
+make dev-local    # Postgres and Redis in Docker; backend, agent and frontend run natively with reload
+```
+
+| Command | What it does |
+|---|---|
+| `make setup` | Prerequisite check, `.env`, Poetry installs into `backend/.venv` and `agent/.venv`, `npm ci`, pre-commit hooks |
+| `make dev` / `make up` | All five services in Docker (foreground / background) |
+| `make db`, `make redis` | Start only Postgres or only Redis |
+| `make dev-backend`, `make dev-agent`, `make dev-frontend` | One native process with reload (start `make db redis` first) |
+| `make db-shell`, `make redis-cli` | Open `psql` or `redis-cli` in the container |
+| `make down`, `make logs`, `make ps` | Stop, follow logs, show status |
+| `make db-reset` | Delete the local database volume (asks first) |
+| `make check` | Run what CI runs: ruff, mypy, pytest, frontend build |
+
+`make dev-local` stops the Docker app containers first so ports 8000, 8001 and 3000 are free. Native processes reach Postgres on `127.0.0.1:5433` and Redis on `127.0.0.1:6380`, which come from `docker-compose.override.yml`.
+
+Without Make, the equivalent manual steps are:
 
 ```bash
 poetry config virtualenvs.in-project true   # one-time: create .venv inside each Python project
@@ -106,8 +127,6 @@ cd backend && poetry install && poetry run pytest
 cd ../agent && poetry install && poetry run pytest
 cd ../frontend && nvm use && npm ci && npm run build
 ```
-
-Checks run in CI and can be run locally in each Python project: `poetry run ruff check .`, `poetry run ruff format --check .`, `poetry run mypy .`, `poetry run pytest`.
 
 ## Secrets and configuration
 
@@ -133,6 +152,9 @@ rolecanvas/
   data/           Dataset download scripts (no raw data committed)
   docs/           Architecture, role definitions, evaluation report, versions
   infra/          Postgres init script (owner and read-only roles)
+  scripts/        Helper scripts used by the Makefile
+  make/           Makefile fragments (OS detection, setup, dev, quality)
+  Makefile
   docker-compose.yml
   .env.example
 ```
