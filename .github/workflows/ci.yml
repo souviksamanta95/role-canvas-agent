@@ -73,13 +73,15 @@ jobs:
         run: |
           cp .env.example .env
           python3 - <<'PY'
-          import os, re
+          import os, re, secrets
           text = open(".env").read()
           for key in ("OPENROUTER_API_KEY", "DJANGO_SECRET_KEY"):
               value = os.environ.get(key, "")
               if not value:
                   raise SystemExit(f"GitHub secret {key} is not set")
               text = re.sub(rf"(?m)^{key}=.*$", lambda m, k=key, v=value: f"{k}={v}", text)
+          # JWT key is generated per run: no repository secret needed for it.
+          text = re.sub(r"(?m)^JWT_SIGNING_KEY=.*$", "JWT_SIGNING_KEY=" + secrets.token_urlsafe(64), text)
           open(".env", "w").write(text)
           PY
       - run: docker compose -f docker-compose.yml up --build --wait --wait-timeout 180

@@ -14,6 +14,8 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 RUN groupadd --system app && useradd --system --gid app --home /app app
 WORKDIR /app
+# collectstatic writes here at start-up, as the non-root user.
+RUN mkdir /app/staticfiles && chown app:app /app/staticfiles
 COPY --from=builder /app/.venv /app/.venv
 COPY --chown=app:app . .
 USER app

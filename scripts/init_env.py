@@ -1,4 +1,4 @@
-"""Create .env from .env.example if it does not exist, and generate a Django secret key.
+"""Create .env from .env.example if it does not exist, and generate Django and JWT secrets.
 
 Never overwrites an existing .env. Prints nothing secret. Works on any OS with Python 3.
 """
@@ -23,13 +23,14 @@ def main() -> int:
         return 1
     shutil.copyfile(EXAMPLE, ENV)
     text = ENV.read_text()
-    text = re.sub(
-        r"(?m)^DJANGO_SECRET_KEY=.*$",
-        lambda _: f"DJANGO_SECRET_KEY={secrets.token_urlsafe(64)}",
-        text,
-    )
+    for key in ("DJANGO_SECRET_KEY", "JWT_SIGNING_KEY"):
+        text = re.sub(
+            rf"(?m)^{key}=.*$",
+            lambda _, k=key: f"{k}={secrets.token_urlsafe(64)}",
+            text,
+        )
     ENV.write_text(text)
-    print("Created .env with a freshly generated DJANGO_SECRET_KEY.")
+    print("Created .env with a freshly generated DJANGO_SECRET_KEY and JWT_SIGNING_KEY.")
     print("Next: set OPENROUTER_API_KEY and replace the remaining change-me values in .env.")
     return 0
 
