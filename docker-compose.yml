@@ -96,6 +96,8 @@ services:
     environment:
       VITE_BACKEND_URL: ${VITE_BACKEND_URL}
       VITE_AGENT_URL: ${VITE_AGENT_URL}
+      # Public Google client ID, shared with the backend (not a secret).
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
     ports:
       - "3000:3000"
     depends_on:

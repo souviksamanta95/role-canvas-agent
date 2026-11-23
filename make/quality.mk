@@ -1,6 +1,6 @@
 # The same checks CI runs.
 
-.PHONY: lint test typecheck check build-frontend
+.PHONY: lint test typecheck check test-frontend build-frontend
 
 lint: ## ruff check + format check for backend and agent
 	cd backend && .venv/$(VENV_BIN)/ruff check . && .venv/$(VENV_BIN)/ruff format --check .
@@ -14,7 +14,10 @@ test: ## pytest for backend and agent
 	cd backend && .venv/$(VENV_BIN)/pytest -q
 	cd agent && .venv/$(VENV_BIN)/pytest -q
 
-build-frontend: ## Production build of the frontend
+test-frontend: ## Frontend unit tests (vitest)
+	cd frontend && $(NVM_USE) npm test
+
+build-frontend: ## Type-check and production build of the frontend
 	cd frontend && $(NVM_USE) npm run build
 
-check: lint typecheck test build-frontend ## Run everything CI runs
+check: lint typecheck test test-frontend build-frontend ## Run everything CI runs
