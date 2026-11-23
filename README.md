@@ -16,7 +16,7 @@ Most "chat with your data" demos return a text answer or a one-off chart. Busine
 3. **Quality is measured.** A per-role evaluation set scores spec validity, query correctness, numeric faithfulness, correct refusals, cost and latency.
 ## Planned features
  
-- Email sign-up (or demo login) and role selection (Marketing, Finance, Operations, Executive)
+- Google sign-in and role selection by department (the four demo roles Marketing, Finance, Operations and Executive, plus more). Sign-in, first-time onboarding and a profile page exist; see "Frontend (in development)"
 - Chat panel that turns a prompt into one or more charts on a draggable canvas
 - Role-specific metric catalog and chart defaults
 - Refusal when a role asks for data it is not allowed to see
@@ -44,7 +44,13 @@ flowchart LR
 5. The React canvas renders the validated spec.
 ## Access model (backend in development)
 
-Admins create departments and roles in the Django admin and decide, per role, which datasets, columns and rows are visible (and whether results must be aggregated). Users sign in with Google, then pick a department and a role inside it. The agent will only ever see the access resolved for that user. See [docs/roles-and-access.md](docs/roles-and-access.md) for the model, the API, the seeded roles and the access rules. Enforcement inside the agent and the frontend sign-in screen are planned.
+Admins create departments and roles in the Django admin and decide, per role, which datasets, columns and rows are visible (and whether results must be aggregated). Users sign in with Google, then pick a department and a role inside it. The agent will only ever see the access resolved for that user. See [docs/roles-and-access.md](docs/roles-and-access.md) for the model, the API, the seeded roles and the access rules. Enforcement inside the agent is planned.
+
+## Frontend (in development)
+
+React + TypeScript (Vite) with four screens: **login** (Google button), **onboarding** (a first-time user picks a department, then a role inside it), **dashboard** (a placeholder canvas and the list of datasets your role can and cannot access) and **profile** (change department, role and region at any time). The chart canvas and prompt box are present but disabled until the agent exists (planned). The browser talks only to the Django backend. The short-lived access token is kept in memory and the refresh token in `localStorage`, a demo-level trade-off to revisit before production.
+
+To sign in you need a Google OAuth client ID in `GOOGLE_OAUTH_CLIENT_ID`; see "Setting up Google sign-in" in [docs/roles-and-access.md](docs/roles-and-access.md). The frontend reads the same variable.
 
 ## Tech stack
  
@@ -103,7 +109,7 @@ make superuser        # email + password for http://localhost:8000/admin/
 Then check:
 
 - Django admin: `http://localhost:8000/admin/`
-- Frontend placeholder page: `http://localhost:3000`
+- Frontend (sign-in page): `http://localhost:3000`
 - Backend health: `http://localhost:8000/health/`
 - Agent health (also checks Redis and Postgres): `http://localhost:8001/health`
 
@@ -132,7 +138,7 @@ make dev-local    # Postgres and Redis in Docker; backend, agent and frontend ru
 | `make db-shell`, `make redis-cli` | Open `psql` or `redis-cli` in the container |
 | `make down`, `make logs`, `make ps` | Stop, follow logs, show status |
 | `make db-reset` | Delete the local database volume (asks first) |
-| `make check` | Run what CI runs: ruff, mypy, pytest, frontend build. Backend tests use in-memory SQLite and need no database. |
+| `make check` | Run what CI runs: ruff, mypy, pytest, frontend tests and build. Backend tests use in-memory SQLite and need no database. |
 
 `make dev-local` stops the Docker app containers first so ports 8000, 8001 and 3000 are free. Native processes reach Postgres on `127.0.0.1:5433` and Redis on `127.0.0.1:6380`, which come from `docker-compose.override.yml`.
 
@@ -142,7 +148,7 @@ Without Make, the equivalent manual steps are:
 poetry config virtualenvs.in-project true   # one-time: create .venv inside each Python project
 cd backend && poetry install && poetry run pytest
 cd ../agent && poetry install && poetry run pytest
-cd ../frontend && nvm use && npm ci && npm run build
+cd ../frontend && nvm use && npm ci && npm test && npm run build
 ```
 
 ## Secrets and configuration
@@ -175,7 +181,7 @@ pre-commit install
 rolecanvas/
   backend/        Django project: Google/JWT auth, departments, roles, data catalog and grants (apps: accounts, catalog)
   agent/          FastAPI service: tools, chart-spec validation, jobs
-  frontend/       React app: canvas and chat
+  frontend/       React app: Google login, onboarding, dashboard and profile (canvas and chat planned)
   eval/           Test sets, scoring scripts, results
   data/           Dataset download scripts (no raw data committed)
   docs/           Architecture, role definitions, evaluation report, versions

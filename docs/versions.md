@@ -22,6 +22,8 @@ the frontend in `frontend/package-lock.json`.
 | Redis | 7.4.9 (`redis:7.4.9-alpine`) | Newest 7.4.x patch tag when checked. Redis 7 as requested. |
 | Node.js | 26.13.1 | Current LTS ("Lithium") per nodejs.org when checked. Pinned in `.nvmrc`, `frontend/.nvmrc` and `frontend/Dockerfile`. |
 | Poetry | 2.5.2 | Pinned in Dockerfiles (build stage only) and CI. Poetry is not present in the final images. |
+| react-router-dom | 7.x | Client-side routing for the login, onboarding, dashboard and profile pages. |
+| vitest, jsdom, Testing Library | vitest 5.x | Frontend unit tests. |
 | Vite / React / TypeScript | Vite 8.x, React 19.x, TypeScript 7.x | Latest releases at scaffold time; exact versions in `package-lock.json`. |
 
 ## Notes

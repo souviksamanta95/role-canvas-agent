@@ -1,6 +1,6 @@
 # Roles, departments and data access
 
-Status: backend implemented, agent enforcement and frontend planned. The demo datasets are
+Status: backend and the frontend sign-in, onboarding, dashboard and profile screens are implemented; agent enforcement is planned. The demo datasets are
 **synthetic placeholders**; real public datasets will be listed in `data/README.md` as chosen.
 
 ## Principles
@@ -125,7 +125,7 @@ users cannot self-assign admin-only roles; dataset text cannot change access.
 
 1. In Google Cloud Console, create an OAuth client ID of type **Web application**.
 2. Add `http://localhost:3000` under Authorized JavaScript origins.
-3. Put the client ID in `GOOGLE_OAUTH_CLIENT_ID` in `.env`. The frontend will use the same ID.
+3. Put the client ID in `GOOGLE_OAUTH_CLIENT_ID` in `.env`. The frontend reads the same variable (recreate the containers with `make up`, or restart `make dev-frontend`).
 4. Optionally set `ALLOWED_EMAIL_DOMAINS`.
 
 Until it is set, `make dev-token EMAIL=you@example.com` issues a token for local testing. It
