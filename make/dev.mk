@@ -15,15 +15,15 @@ export $(ENV_KEYS)
 
 # Native processes reach the containers through the loopback ports, not the Compose hostnames.
 # Target-specific exports work the same on every OS (no inline VAR=value shell syntax).
-dev-backend dev-agent: export POSTGRES_HOST := 127.0.0.1
-dev-backend dev-agent: export POSTGRES_PORT := $(DB_HOST_PORT)
-dev-backend dev-agent: export REDIS_URL     := redis://127.0.0.1:$(REDIS_HOST_PORT)/0
+dev-backend dev-agent manage: export POSTGRES_HOST := 127.0.0.1
+dev-backend dev-agent manage: export POSTGRES_PORT := $(DB_HOST_PORT)
+dev-backend dev-agent manage: export REDIS_URL     := redis://127.0.0.1:$(REDIS_HOST_PORT)/0
 
 # Dependencies of the native targets. dev-local starts them once and then passes DEV_DEPS=
 # to the parallel sub-make so they are not started concurrently.
 DEV_DEPS ?= db redis
 
-.PHONY: dev up down restart logs ps db redis db-stop redis-stop db-shell redis-cli db-reset \
+.PHONY: manage migrate seed superuser dev-token dev up down restart logs ps db redis db-stop redis-stop db-shell redis-cli db-reset \
         dev-local dev-backend dev-agent dev-frontend open
 
 # ---- everything in Docker ----------------------------------------------------------------
@@ -89,6 +89,26 @@ dev-agent: $(DEV_DEPS) ## Run FastAPI natively with autoreload on :8001
 
 dev-frontend: ## Run the Vite dev server on :3000
 	cd frontend && $(NVM_USE) npm run dev
+
+# ---- Django management (run natively against the Docker database) -------------------------
+
+manage: $(DEV_DEPS) ## Run any manage.py command: make manage CMD="showmigrations"
+	cd backend && $(VENV_BIN_BACKEND)/python manage.py $(CMD)
+
+migrate: ## Apply database migrations
+	@$(MAKE) --no-print-directory manage CMD=migrate
+
+seed: ## Load demo departments, roles, datasets, grants and synthetic demo tables
+	@$(MAKE) --no-print-directory manage CMD=migrate
+	@$(MAKE) --no-print-directory DEV_DEPS= manage CMD=seed_access
+	@$(MAKE) --no-print-directory DEV_DEPS= manage CMD=seed_demo_tables
+
+superuser: ## Create a Django admin user (email + password, for /admin/)
+	@$(MAKE) --no-print-directory manage CMD=createsuperuser
+
+dev-token: ## Dev-only JWT for a user without Google: make dev-token EMAIL=you@example.com
+	@test -n "$(EMAIL)" || { echo "Usage: make dev-token EMAIL=you@example.com"; exit 1; }
+	@$(MAKE) --no-print-directory manage CMD="issue_dev_token $(EMAIL)"
 
 open: ## Open the frontend in your browser
 	$(OPEN) http://localhost:3000
