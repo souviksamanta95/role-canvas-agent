@@ -42,6 +42,10 @@ flowchart LR
 3. The LLM selects from fixed tools (list metrics, run a parameterized query, aggregate) and returns a chart spec.
 4. The backend validates the spec against a JSON schema and checks the numbers against the query result.
 5. The React canvas renders the validated spec.
+## Access model (backend in development)
+
+Admins create departments and roles in the Django admin and decide, per role, which datasets, columns and rows are visible (and whether results must be aggregated). Users sign in with Google, then pick a department and a role inside it. The agent will only ever see the access resolved for that user. See [docs/roles-and-access.md](docs/roles-and-access.md) for the model, the API, the seeded roles and the access rules. Enforcement inside the agent and the frontend sign-in screen are planned.
+
 ## Tech stack
  
 | Layer | Choice |
@@ -88,8 +92,17 @@ cp .env.example .env      # then edit .env: set OPENROUTER_API_KEY and replace t
 docker compose up --build
 ```
 
+Then load the demo roles and data, and create an admin user for the Django admin:
+
+```bash
+make setup            # once, if you have not already (needs Python 3.12, Poetry 2.x, Node LTS)
+make seed             # demo departments, roles, datasets, grants and synthetic demo tables
+make superuser        # email + password for http://localhost:8000/admin/
+```
+
 Then check:
 
+- Django admin: `http://localhost:8000/admin/`
 - Frontend placeholder page: `http://localhost:3000`
 - Backend health: `http://localhost:8000/health/`
 - Agent health (also checks Redis and Postgres): `http://localhost:8001/health`
@@ -112,10 +125,14 @@ make dev-local    # Postgres and Redis in Docker; backend, agent and frontend ru
 | `make dev` / `make up` | All five services in Docker (foreground / background) |
 | `make db`, `make redis` | Start only Postgres or only Redis |
 | `make dev-backend`, `make dev-agent`, `make dev-frontend` | One native process with reload (start `make db redis` first) |
+| `make seed` | Migrate, then load demo departments, roles, datasets, grants and synthetic tables (safe to repeat) |
+| `make superuser` | Create a Django admin user for `/admin/` |
+| `make manage CMD="..."` | Run any `manage.py` command against the Docker database |
+| `make dev-token EMAIL=...` | Dev-only JWT without Google (needs `DJANGO_DEBUG=True`) |
 | `make db-shell`, `make redis-cli` | Open `psql` or `redis-cli` in the container |
 | `make down`, `make logs`, `make ps` | Stop, follow logs, show status |
 | `make db-reset` | Delete the local database volume (asks first) |
-| `make check` | Run what CI runs: ruff, mypy, pytest, frontend build |
+| `make check` | Run what CI runs: ruff, mypy, pytest, frontend build. Backend tests use in-memory SQLite and need no database. |
 
 `make dev-local` stops the Docker app containers first so ports 8000, 8001 and 3000 are free. Native processes reach Postgres on `127.0.0.1:5433` and Redis on `127.0.0.1:6380`, which come from `docker-compose.override.yml`.
 
@@ -132,7 +149,9 @@ cd ../frontend && nvm use && npm ci && npm run build
 
 All configuration is read from environment variables. The real values live in `.env`, which is git-ignored; only `.env.example` is committed. Never put keys in code, settings files, Dockerfiles or `docker-compose.yml`.
 
-For GitHub Actions, add two repository secrets under Settings, Secrets and variables, Actions: `OPENROUTER_API_KEY` and `DJANGO_SECRET_KEY`. The `compose-smoke` CI job uses them to build and start the stack.
+Beyond the OpenRouter key and Django secret, `.env` holds `JWT_SIGNING_KEY` (token signing, separate from the Django key), `GOOGLE_OAUTH_CLIENT_ID` (Google sign-in; see the setup steps in `docs/roles-and-access.md`), and optional `ALLOWED_EMAIL_DOMAINS` and `CORS_ALLOWED_ORIGINS`. Avoid `$` and `#` in values, which break `make` and shell parsing.
+
+For GitHub Actions, add two repository secrets under Settings, Secrets and variables, Actions: `OPENROUTER_API_KEY` and `DJANGO_SECRET_KEY`. The `compose-smoke` CI job uses them to build and start the stack; it generates its own `JWT_SIGNING_KEY` for each run.
 
 Install the pre-commit hooks (ruff and the gitleaks secret scanner) once per clone:
 
@@ -148,11 +167,13 @@ pre-commit install
 - `make db-reset` to delete the local database volume and recreate the roles from `.env` (local data is lost; it asks first), or
 - keep the data and change the passwords in place: `make db-shell`, then `ALTER ROLE <user> PASSWORD '<new value>';` for the owner and read-only roles.
 
+**Upgrading from the Phase 0 scaffold.** The `datasets` schema, the stricter read-only role and the custom user model are created or required from the first database initialisation. If you have an older local database, run `make db-reset`, then `make up` and `make seed`.
+
 ## Repository layout
 
 ```
 rolecanvas/
-  backend/        Django project: auth, roles, saved dashboards
+  backend/        Django project: Google/JWT auth, departments, roles, data catalog and grants (apps: accounts, catalog)
   agent/          FastAPI service: tools, chart-spec validation, jobs
   frontend/       React app: canvas and chat
   eval/           Test sets, scoring scripts, results
